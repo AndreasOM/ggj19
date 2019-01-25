@@ -1,0 +1,8 @@
+[package]
+name = "ggj19"
+version = "0.1.0"
+authors = ["Andreas Neukoetter <andreas@omni-mad.com>"]
+edition = "2018"
+
+[dependencies]
+minifb = "*"
