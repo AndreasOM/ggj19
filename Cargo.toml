@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 minifb = "*"
+image = "0.21.0"
+rand = "0.6.4"
