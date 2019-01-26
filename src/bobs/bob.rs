@@ -2,8 +2,8 @@ use image::GenericImageView;
 
 #[derive(Debug)]
 pub struct Bob {
-	pub width: usize,
-	pub height: usize,
+	pub width: isize,
+	pub height: isize,
 	pub data: Vec< u32 >,
 }
 
@@ -23,10 +23,8 @@ impl Bob {
 	pub fn load_png_bytes( &mut self, data: &[u8] ) {
 		let img = image::load_from_memory_with_format( data, image::ImageFormat::PNG ).unwrap();
 
-		println!("dimensions {:?}", img.dimensions());
-
-		self.width = img.dimensions().0 as usize;
-		self.height = img.dimensions().1 as usize;
+		self.width = img.dimensions().0 as isize;
+		self.height = img.dimensions().1 as isize;
 
 		img.to_rgba();
 		for p in img.pixels() {

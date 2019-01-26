@@ -96,7 +96,7 @@ impl BobManager {
 			*d = FB::mix( *s, *d, alpha );
 		}		
 	}
-	pub fn render( &self, fb: &mut FB, bobtype: BobType, x: usize, y: usize ) {
+	pub fn render( &self, fb: &mut FB, bobtype: BobType, x: isize, y: isize ) {
 		let bob = &self.bobs[ &bobtype ];
 		if x == 0 && y == 0 && bob.width == fb.width && bob.height == fb.height {	// fast blit
 //			println!("Fastblit {:?}", bob);
@@ -113,10 +113,13 @@ impl BobManager {
 		} else { // slow blit
 			let mut src = 0;
 			for r in 0..bob.height {
+				if y+r < 0 {
+					continue;
+				}
 				if y + r >= fb.height {
 					break;
 				}
-				let mut dst = fb.width * ( r + y ) + x;
+				let mut dst = ( fb.width * ( r + y ) + x ) as  usize;
 				for c in 0..bob.width {
 					if x + c >= fb.width {
 						break;

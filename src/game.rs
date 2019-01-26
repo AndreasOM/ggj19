@@ -101,8 +101,8 @@ pub struct Game {
 	render_map: bool,
 }
 
-const GRID_WIDTH: usize = 30;
-const GRID_HEIGHT: usize = 17;
+const GRID_WIDTH: isize = 30;
+const GRID_HEIGHT: isize = 17;
 
 const MAX_PLAYER_X: f32 = ( 480 - 8 ) as f32;
 const MAX_PLAYER_Y: f32 = ( 270 - 8 ) as f32;
@@ -119,7 +119,7 @@ impl Game {
 			player_direction: Direction::Down,
 			trash: Vec::new(),
 //			grid: vec![Tile{bob_type:BobType::None,walkable:false};GRID_WIDTH*GRID_HEIGHT],
-			grid: vec![Tile{..Default::default()};GRID_WIDTH*GRID_HEIGHT],
+			grid: vec![Tile{..Default::default()};( GRID_WIDTH*GRID_HEIGHT ) as usize],
 			
 			max_trash: 5,
 			bag_fill: 0.0,
@@ -142,7 +142,8 @@ impl Game {
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = img.get_pixel( x as u32, y as u32 );
-				self.grid[ y * GRID_WIDTH + x ].from_color( &p.data );
+
+				self.grid[ ( y * GRID_WIDTH + x ) as usize ].from_color( &p.data );
 			}
 		}
 
@@ -152,8 +153,11 @@ impl Game {
 		let x = rand::thread_rng().gen_range(0, GRID_WIDTH - 1);
 		let y = rand::thread_rng().gen_range(0, GRID_HEIGHT - 1);
 
-		if self.grid[ y * GRID_WIDTH + x ].bob_type == BobType::None {
-			self.grid[ y * GRID_WIDTH + x ].bob_type = BobType::Trash00;
+		let p = ( y * GRID_WIDTH + x ) as usize;
+		let t = &self.grid[ p ];
+		if t.bob_type == BobType::None && ( t.walkable || t.rowable ){
+
+			self.grid[ p ].bob_type = BobType::Trash00;
 		}
 	}
 
@@ -172,14 +176,14 @@ impl Game {
 			return false;
 		}
 		let ( gx, gy ) = self.pos_to_grid( x, y );
-		self.grid[ gy as usize * GRID_WIDTH + gx as usize ].walkable
+		self.grid[ ( gy * GRID_WIDTH + gx ) as usize ].walkable
 	}
 	fn is_pos_rowable( &self, x: f32, y: f32 ) -> bool {
 		if !self.is_accessable(x, y) {
 			return false;
 		}
 		let ( gx, gy ) = self.pos_to_grid( x, y );
-		self.grid[ gy as usize * GRID_WIDTH + gx as usize ].rowable
+		self.grid[ ( gy  * GRID_WIDTH + gx ) as usize ].rowable
 	}
 
 	fn grid_in_front_of_player( &self ) -> ( isize, isize ) {
@@ -195,10 +199,12 @@ impl Game {
 
 	fn tile_in_fron_of_player( &mut self ) -> &mut Tile {
 		let ( x, y ) = self.grid_in_front_of_player();
-		let x = x as usize;
-		let y = y as usize;
+		let x = x as isize;
+		let y = y as isize;
 
-		&mut self.grid[ y * GRID_WIDTH + x ]
+		let p = ( y * GRID_WIDTH + x ) as usize;
+
+		&mut self.grid[ p ]
 	}
 
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
@@ -220,14 +226,16 @@ impl Game {
 		if input.action_a && self.trash.len() < self.max_trash {
 			let ( fx, fy ) = self.grid_in_front_of_player();
 			if fx >= 0 && fy >= 0 {
-				let fx = fx as usize;
-				let fy = fy as usize;
-				if self.grid[ fy * GRID_WIDTH + fx ].bob_type != BobType::None {
-					self.trash.push( self.grid[ fy * GRID_WIDTH + fx ].bob_type );
-					self.grid[ fy * GRID_WIDTH + fx ].bob_type = BobType::None;
+				let fx = fx as isize;
+				let fy = fy as isize;
+				let p = ( fy * GRID_WIDTH + fx ) as usize;
+				if self.grid[ p ].bob_type != BobType::None {
+					self.trash.push( self.grid[ p ].bob_type );
+					self.grid[ p ].bob_type = BobType::None;
 				}
 			}
 		} else if input.action_b && self.trash.len() > 0 {
+			input.action_b = false;
 			let bob_type = self.trash[ self.trash.len() - 1 ].clone();
 			let mut trash_dropped = false;
 			let target_tile = self.tile_in_fron_of_player();
@@ -246,7 +254,7 @@ impl Game {
 		} else {
 		}
 
-		let dist = 32.0*time_step;
+		let dist = 96.0*time_step;
 		let old_pos = self.player_pos;
 
 		if input.right {
@@ -345,24 +353,24 @@ impl Game {
 		};
 
 //		println!("{:?}", self.player_pos );
-		self.bobmanager.render( fb, player_bob, self.player_pos.0 as usize, self.player_pos.1 as usize );
+		self.bobmanager.render( fb, player_bob, self.player_pos.0 as isize, self.player_pos.1 as isize );
 
 		let ( fx, fy ) = self.grid_in_front_of_player();
 		if fx >= 0 && fy >= 0 {
-			self.bobmanager.render( fb, BobType::Target, ( fx * 16 ) as usize, ( fy * 16 ) as usize );
+			self.bobmanager.render( fb, BobType::Target, ( fx * 16 ) as isize, ( fy * 16 ) as isize );
 		}
 
 		let perlin = PerlinNoise::new();
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
-				let p = y * GRID_WIDTH + x;
+				let p = ( y * GRID_WIDTH + x ) as usize;
 				if self.grid[ p ].bob_type != BobType::None {
 //					let ox = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.01]) * 8.0 ) as usize;
 //					let oy = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.011]) * 8.0 ) as usize;
-					let ox = ( 0.0 + ( x as f64 + y as f64 + self.time as f64 * 1.1 ).sin() * 2.0 ) as isize;
+					let ox = ( 0.0 + ( x as f64 + y as f64 + self.time as f64 * 11.1 ).sin() * 2.0 ) as isize;
 					let oy = -ox;
-					let bx = ( ( ( x * 16 ) as isize ) + ox ) as usize;
-					let by = ( ( ( y * 16 ) as isize ) + oy ) as usize;
+					let bx = ( ( ( x * 16 ) as isize ) + ox ) as isize;
+					let by = ( ( ( y * 16 ) as isize ) + oy ) as isize;
 					if self.grid[ p ].rowable {
 						self.bobmanager.render( fb, self.grid[ p ].bob_type, bx, by );
 					} else {
@@ -374,7 +382,7 @@ impl Game {
 
 		// bag
 		let bag_bottom = 270 - 16;
-		fb.fill_rect( 16, bag_bottom-( self.bag_fill as usize ), 32, bag_bottom, 0x00000ff );
+		fb.fill_rect( 16, bag_bottom-( self.bag_fill as isize ), 32, bag_bottom, 0x00000ff );
 
 
 		if self.title_overlay > 0.0 {
@@ -385,24 +393,24 @@ impl Game {
 		if self.render_map {
 			for y in 0..GRID_HEIGHT {
 				for x in 0..GRID_WIDTH {
-					let p = y * GRID_WIDTH + x;
+					let p = ( y * GRID_WIDTH + x ) as usize;
 					let col = self.grid[ p ].to_color();
 					fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, col );
 				}
 			}
 			let ( px, py ) = self.pos_to_grid( self.player_pos.0, self.player_pos.1 );
-			let px = px as usize;
-			let py = py as usize;
+			let px = px as isize;
+			let py = py as isize;
 
 			fb.fill_rect( px*16, py*16, ( px+1 )*16, ( py+1 )*16, 0xffffffff );
 
 			let ( px, py ) = self.grid_in_front_of_player();
-			let px = px as usize;
-			let py = py as usize;
+			let px = px as isize;
+			let py = py as isize;
 			fb.fill_rect( px*16, py*16, ( px+1 )*16, ( py+1 )*16, 0x88ff88ff );
 
-			let px = self.player_pos.0 as usize;
-			let py = self.player_pos.1 as usize;
+			let px = self.player_pos.0 as isize;
+			let py = self.player_pos.1 as isize;
 			fb.fill_rect( px, py, ( px+1 ), ( py+1 ), 0x333333ff );
 
 		}
