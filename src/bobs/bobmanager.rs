@@ -64,6 +64,10 @@ impl BobManager {
 
 	// BGRA
 	fn blend( fg: u32, bg: u32 ) -> u32 {
+//		l
+		let a = ( ( fg >> 0 ) & 0xff ) as f32 / 255.0;// + 1;
+		FB::mix( fg, bg, a )
+		/*
 		let a = ( ( fg >> 0 ) & 0xff ) as u32;// + 1;
 		let ia = 255 - a;
 		let fg_r = ( fg >> 8 ) & 0xff;
@@ -78,7 +82,19 @@ impl BobManager {
 		let b = ( a * fg_b + ia * bg_b ) >> 8;
 
 		( b << 24 ) | ( g << 16 ) | ( r << 8 ) | ( a << 0 )
+		*/
 //		fg
+	}
+
+	pub fn render_fullscreen_alpha( &self, fb: &mut FB, bobtype: BobType, alpha: f32 )
+	{
+		let bob = &self.bobs[ &bobtype ];
+		let inv_alpha = 1.0 - alpha;
+
+		for it in fb.buffer().iter_mut().zip(bob.data.iter()) {
+			let (d, s) = it;
+			*d = FB::mix( *s, *d, alpha );
+		}		
 	}
 	pub fn render( &self, fb: &mut FB, bobtype: BobType, x: usize, y: usize ) {
 		let bob = &self.bobs[ &bobtype ];

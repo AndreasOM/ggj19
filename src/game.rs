@@ -1,6 +1,7 @@
 
 use image::GenericImageView;
 use rand::Rng;
+use perlin::PerlinNoise;
 
 use crate::bobs::bobtype::BobType;
 use crate::fb::FB;
@@ -95,6 +96,7 @@ pub struct Game {
 	max_trash: usize,
 	bag_fill: f32,
 	bag_fill_target: f32,
+	time: f32,
 
 	render_map: bool,
 }
@@ -122,6 +124,7 @@ impl Game {
 			max_trash: 5,
 			bag_fill: 0.0,
 			bag_fill_target: 0.0,
+			time: 0.0,
 
 			render_map: false,
 		};
@@ -200,6 +203,8 @@ impl Game {
 
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
 
+		self.time += time_step;
+
 		if self.title_overlay < 1.0 {
 			if self.title_overlay > 0.0 {
 				self.title_overlay -= 0.3 * time_step;
@@ -266,7 +271,6 @@ impl Game {
 				if !is_walkable {
 					if is_rowable {
 						let old_is_rowable = self.is_pos_rowable( old_pos.0 + 8.0 , old_pos.1 + 8.0 );
-						println!("End walk, start row? -> {:?}", old_is_rowable );
 						if !old_is_rowable {
 							new_is_valid = false;
 						} else {
@@ -281,7 +285,6 @@ impl Game {
 				if !is_rowable {
 					if is_walkable {
 						let old_is_walkable = self.is_pos_walkable( old_pos.0 + 8.0 , old_pos.1 + 8.0 );
-						println!("End row, start walk? -> {:?}", old_is_walkable );
 						if !old_is_walkable {
 							new_is_valid = false;
 						} else {
@@ -349,11 +352,22 @@ impl Game {
 			self.bobmanager.render( fb, BobType::Target, ( fx * 16 ) as usize, ( fy * 16 ) as usize );
 		}
 
+		let perlin = PerlinNoise::new();
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = y * GRID_WIDTH + x;
 				if self.grid[ p ].bob_type != BobType::None {
-					self.bobmanager.render( fb, self.grid[ p ].bob_type, x*16, y*16 );
+//					let ox = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.01]) * 8.0 ) as usize;
+//					let oy = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.011]) * 8.0 ) as usize;
+					let ox = ( 0.0 + ( x as f64 + y as f64 + self.time as f64 * 1.1 ).sin() * 2.0 ) as isize;
+					let oy = -ox;
+					let bx = ( ( ( x * 16 ) as isize ) + ox ) as usize;
+					let by = ( ( ( y * 16 ) as isize ) + oy ) as usize;
+					if self.grid[ p ].rowable {
+						self.bobmanager.render( fb, self.grid[ p ].bob_type, bx, by );
+					} else {
+						self.bobmanager.render( fb, self.grid[ p ].bob_type, x*16, y*16 );
+					}
 				}
 			}
 		}
@@ -364,7 +378,7 @@ impl Game {
 
 
 		if self.title_overlay > 0.0 {
-			self.bobmanager.render( fb, BobType::Title, 0, 0 );
+			self.bobmanager.render_fullscreen_alpha( fb, BobType::Title, self.title_overlay );
 		}
 
 		// debug

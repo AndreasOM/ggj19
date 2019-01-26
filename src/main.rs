@@ -1,6 +1,7 @@
 
 extern crate minifb;
 extern crate rand;
+extern crate perlin_noise as perlin;
 
 use minifb::{Key, Scale, WindowOptions, Window};
 
