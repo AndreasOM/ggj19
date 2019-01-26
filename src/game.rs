@@ -11,7 +11,7 @@ use crate::bobs::bobmanager::BobManager;
 #[derive(Debug)]
 enum State {
 	Walking,
-	Carrying,
+	Rowing,
 }
 
 #[derive(Debug)]
@@ -26,6 +26,9 @@ enum Direction {
 pub struct Tile {
 	bob_type: BobType,
 	walkable: bool,
+	rowable: bool,
+	water: bool,
+	trash: bool,	// actually trash can
 }
 
 impl Tile {
@@ -33,7 +36,49 @@ impl Tile {
 		Tile {
 			bob_type: BobType::None,
 			walkable: false,
+			rowable: false,
+			water: false,
+			trash: false,
 		}
+	}
+
+	// RGBA
+	pub fn from_color( &mut self, col: &[u8] ) {
+		let pix = ( col[ 0 ], col[ 1 ], col[ 2 ], col[ 3 ] );
+		match pix {
+			( 0x00, 0x00, 0x00, _ ) => self.walkable = true,
+			( 0x00, 0x00, 0xff, _ ) => { self.rowable = true; self.water = true },
+			( 0x00, 0xff, 0x00, _ ) => { self.trash = true },
+			( 0xff, 0xff, 0x00, _ ) => { self.walkable = true; self.rowable = true },
+			( 0xff, 0xff, 0xff, _ ) => {  }, // blocked
+
+			_ => {},
+		}
+	}
+
+	// BGRA
+	// ARGB	-> WTF?
+	pub fn to_color( &self ) -> u32 {
+		match ( self.walkable, self.rowable, self.trash ) {
+			( true, true, false )	=> 0x80ffff00,	// slip
+			( true, false, false )	=> 0x80333333,	// land
+			( false, true, false )	=> 0x800000ff,	// water
+			( false, false, false )	=> 0x80fffff,	// blocked
+			( _, _, true )			=> 0x8000ff00,	// trash
+			_						=> 0x80ff00ff,	// wtf
+		}
+	}
+}
+
+impl Default for Tile {
+	fn default() -> Tile {
+		Tile {
+			bob_type: BobType::None,
+			walkable: false,
+			rowable: false,
+			water: false,
+			trash: false,
+		}		
 	}
 }
 
@@ -47,6 +92,8 @@ pub struct Game {
 	trash: Vec< BobType >,
 	grid: Vec< Tile >,
 	max_trash: usize,
+	bag_fill: f32,
+	bag_fill_target: f32,
 
 	render_map: bool,
 }
@@ -67,8 +114,12 @@ impl Game {
 			player_pos: ( 21.0*16.0, 6.0*16.0 ),
 			player_direction: Direction::Down,
 			trash: Vec::new(),
-			grid: vec![Tile{bob_type:BobType::None,walkable:false};GRID_WIDTH*GRID_HEIGHT],
+//			grid: vec![Tile{bob_type:BobType::None,walkable:false};GRID_WIDTH*GRID_HEIGHT],
+			grid: vec![Tile{..Default::default()};GRID_WIDTH*GRID_HEIGHT],
+			
 			max_trash: 5,
+			bag_fill: 0.0,
+			bag_fill_target: 0.0,
 
 			render_map: false,
 		};
@@ -86,11 +137,12 @@ impl Game {
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = img.get_pixel( x as u32, y as u32 );
-				let pix = ( p.data[ 0 ], p.data[ 1 ], p.data[ 2 ], p.data[ 3 ] );
-				match pix {
-					( 0, 0, 0, _ ) => self.grid[ y * GRID_WIDTH + x ].walkable = true,
-					_ => {},
-				}
+//				let pix = ( p.data[ 0 ], p.data[ 1 ], p.data[ 2 ], p.data[ 3 ] );
+				self.grid[ y * GRID_WIDTH + x ].from_color( &p.data );
+//				match pix {
+//					( 0, 0, 0, _ ) => self.grid[ y * GRID_WIDTH + x ].walkable = true,
+//					_ => {},
+//				}
 			}
 		}
 
@@ -108,23 +160,28 @@ impl Game {
 	fn pos_to_grid( &self, x: f32, y: f32 ) -> ( isize, isize ) {
 		( ( x/16.0 ).floor() as isize, ( y/16.0 ).floor() as isize )
 	}
-	fn is_pos_walkable( &self, x: f32, y: f32 ) -> bool {
+	fn is_accessable( &self, x: f32, y: f32 ) -> bool {
 		if x <= 8.0 || y <= 8.0 || x >= MAX_PLAYER_X || y >= MAX_PLAYER_Y {
 			return false;
 		}
-		let ( gx, gy ) = self.pos_to_grid( x, y );
-//		let gx = ( x/16.0 ).floor() as isize;
-//		let gy = ( y/16.0 ).floor() as isize;
 
-//		println!("{:?} {:?}", x, gx );
-		if /*gx < 0 || gy < 0 || */gx >= GRID_WIDTH as isize || gy >= GRID_HEIGHT as isize {
+		true		
+	}
+	fn is_pos_walkable( &self, x: f32, y: f32 ) -> bool {
+		if !self.is_accessable(x, y) {
 			return false;
 		}
-
+		let ( gx, gy ) = self.pos_to_grid( x, y );
 		self.grid[ gy as usize * GRID_WIDTH + gx as usize ].walkable
-
-//		true
 	}
+	fn is_pos_rowable( &self, x: f32, y: f32 ) -> bool {
+		if !self.is_accessable(x, y) {
+			return false;
+		}
+		let ( gx, gy ) = self.pos_to_grid( x, y );
+		self.grid[ gy as usize * GRID_WIDTH + gx as usize ].rowable
+	}
+
 	fn grid_in_front_of_player( &self ) -> ( isize, isize ) {
 		let ( x, y ) = self.pos_to_grid(self.player_pos.0 + 8.0 , self.player_pos.1 + 8.0 );
 		let ( x, y ) = match self.player_direction {
@@ -136,7 +193,7 @@ impl Game {
 		( x, y )
 	}
 
-	pub fn update( &mut self, input: &mut Input ) {
+	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
 
 		if input.action_a && self.trash.len() < self.max_trash {
 			let ( fx, fy ) = self.grid_in_front_of_player();
@@ -148,24 +205,22 @@ impl Game {
 					self.grid[ fy * GRID_WIDTH + fx ].bob_type = BobType::None;
 				}
 			}
-
-			self.state = State::Carrying;
 		} else if input.action_b && self.trash.len() > 0 {
 			let ( fx, fy ) = self.grid_in_front_of_player();
 			if fx >= 0 && fy >= 0 {
 				let fx = fx as usize;
 				let fy = fy as usize;
 				if self.grid[ fy * GRID_WIDTH + fx ].bob_type == BobType::None {
-//					self.trash.push( self.grid[ fy * GRID_WIDTH + fx ].bob_type );	// :TODO: pop last
-					self.grid[ fy * GRID_WIDTH + fx ].bob_type = BobType::Trash00;
+					match self.trash.pop() {
+						Some( bob_type ) => self.grid[ fy * GRID_WIDTH + fx ].bob_type = bob_type,
+						_ => {},
+					}
 				}
 			}
-
 		} else {
-			self.state = State::Walking;
 		}
 
-		let dist = 1.0;
+		let dist = 32.0*time_step;
 		let old_pos = self.player_pos;
 
 		if input.right {
@@ -182,7 +237,43 @@ impl Game {
 			self.player_direction = Direction::Up;
 		}
 
-		if !self.is_pos_walkable( self.player_pos.0 + 8.0 , self.player_pos.1+ 8.0 ) {
+		let mut new_is_valid = true;
+		let is_walkable = self.is_pos_walkable( self.player_pos.0 + 8.0 , self.player_pos.1 + 8.0 );
+		let is_rowable = self.is_pos_rowable( self.player_pos.0 + 8.0 , self.player_pos.1 + 8.0 );
+		match self.state {
+			State::Walking => {
+				if !is_walkable {
+					if is_rowable {
+						let old_is_rowable = self.is_pos_rowable( old_pos.0 + 8.0 , old_pos.1 + 8.0 );
+						println!("End walk, start row? -> {:?}", old_is_rowable );
+						if !old_is_rowable {
+							new_is_valid = false;
+						} else {
+							self.state = State::Rowing;
+						}
+					} else {
+						new_is_valid = false;
+					}
+				}				
+			}
+			State::Rowing => {
+				if !is_rowable {
+					if is_walkable {
+						let old_is_walkable = self.is_pos_walkable( old_pos.0 + 8.0 , old_pos.1 + 8.0 );
+						println!("End row, start walk? -> {:?}", old_is_walkable );
+						if !old_is_walkable {
+							new_is_valid = false;
+						} else {
+							self.state = State::Walking;
+						}
+					} else {
+						new_is_valid = false;
+					}
+				}				
+			}
+		}
+
+		if !new_is_valid {
 			self.player_pos = old_pos;
 		}
 /*
@@ -199,6 +290,25 @@ impl Game {
 			self.player_pos.1 = MAX_PLAYER_Y;
 		}
 */
+		// bag
+
+		self.bag_fill_target = 16.0 * self.trash.len() as f32;
+
+		let bag_fill_delta = self.bag_fill_target - self.bag_fill;
+		let bag_fill_sign = bag_fill_delta.signum();
+
+		let bag_fill_speed = 64.0 * time_step;
+		if bag_fill_delta > 0.0 {
+			self.bag_fill += bag_fill_speed;
+			if self.bag_fill > self.bag_fill_target {
+				self.bag_fill = self.bag_fill_target;
+			}
+		} else {
+			self.bag_fill -= bag_fill_speed;
+			if self.bag_fill < self.bag_fill_target {
+				self.bag_fill = self.bag_fill_target;
+			}
+		}
 
 		// debug
 		if input.debug_0 {
@@ -214,15 +324,6 @@ impl Game {
 	}
 
 	pub fn render( &mut self, fb: &mut FB) {
-		let mut col: u32 = 0xf1;
-		match self.state {
-			State::Carrying => col = 0x1f,
-			_ => {},
-		}
- 		for i in fb.buffer().iter_mut() {
-			*i = col; // write something more funny here!
-		}
-
 		self.bobmanager.render( fb, BobType::Background, 0, 0 );
 
 		let player_bob = match self.player_direction {
@@ -248,21 +349,34 @@ impl Game {
 				}
 			}
 		}
-		/*
-		for t in &self.trash {
-			self.bobmanager.render( fb, t.bob_type, t.pos.0 as usize, t.pos.1 as usize );
-		};
-		*/
+
+		// bag
+		let bag_bottom = 270 - 16;
+		fb.fill_rect( 16, bag_bottom-( self.bag_fill as usize ), 32, bag_bottom, 0x00000ff );
 
 		if self.render_map {
 			for y in 0..GRID_HEIGHT {
 				for x in 0..GRID_WIDTH {
 					let p = y * GRID_WIDTH + x;
+					let col = self.grid[ p ].to_color();
+					fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, col );
+					/*
 					if self.grid[ p ].walkable {
-						fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0xaa33aaff );
+						if self.grid[ p ].rowable {
+							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00ffff80 );
+						} else {
+							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00000080 );
+						}
+					} else if self.grid[ p ].rowable {
+							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0xff000080 );
 					} else {
-						fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00330000 );
+						if self.grid[ p ].trash {
+							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00ff0080 );
+						} else {
+							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x33333380 );
+						}
 					}
+					*/
 				}
 			}
 			let ( px, py ) = self.pos_to_grid( self.player_pos.0, self.player_pos.1 );

@@ -3,6 +3,7 @@
 
 # TODO
 
+[ ] Add Trash bag status
 [ ] Fix alpha
 [ ] Create walkable grid
 [ ] Fix timestep

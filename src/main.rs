@@ -4,8 +4,8 @@ extern crate rand;
 
 use minifb::{Key, Scale, WindowOptions, Window};
 
-const WIDTH: usize = 1920/4;
-const HEIGHT: usize = 1080/4;
+const WIDTH: usize = 480; //1920/4;
+const HEIGHT: usize = 270; //1080/4;
 
 fn main() {
     let mut fb = fb::FB::new( WIDTH, HEIGHT );
@@ -31,8 +31,9 @@ fn main() {
 //            *i = 0; // write something more funny here!
 //        }
 
+        let time_step = 1.0/60.0;
         input.update_keys( &window.get_keys() );
-        game.update( &mut input );
+        game.update( time_step, &mut input );
         game.render( &mut fb );
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window.update_with_buffer(&fb.buffer()).unwrap();
