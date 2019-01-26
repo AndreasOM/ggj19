@@ -2,6 +2,7 @@
 pub enum BobType {
 	None,
 	Title,
+	GameOver,
 	Numbers,
 	Target,
 	PlayerLeft,

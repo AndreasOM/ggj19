@@ -94,11 +94,16 @@ pub struct Game {
 	player_direction: Direction,
 	trash: Vec< BobType >,
 	grid: Vec< Tile >,
-	max_trash: usize,
+	max_trash_bag: usize,
 	bag_fill: f32,
 	bag_fill_target: f32,
 	time: f32,
 	trash_recycled: usize,
+	time_since_last_trash: f32,
+	active_trash: usize,
+	max_trash: usize,
+	gameover: bool,
+	gameover_offset: f32,
 
 	render_map: bool,
 }
@@ -123,11 +128,16 @@ impl Game {
 //			grid: vec![Tile{bob_type:BobType::None,walkable:false};GRID_WIDTH*GRID_HEIGHT],
 			grid: vec![Tile{..Default::default()};( GRID_WIDTH*GRID_HEIGHT ) as usize],
 			
-			max_trash: 5,
+			max_trash_bag: 5,
 			bag_fill: 0.0,
 			bag_fill_target: 0.0,
 			time: 0.0,
 			trash_recycled: 0,
+			time_since_last_trash: 0.0,
+			active_trash: 0,
+			max_trash: 100,
+			gameover: false,
+			gameover_offset: 1.0,
 
 			render_map: false,
 		};
@@ -161,6 +171,8 @@ impl Game {
 		if t.bob_type == BobType::None && ( t.walkable || t.rowable ){
 
 			self.grid[ p ].bob_type = BobType::Trash00;
+			self.time_since_last_trash = 0.0;
+			self.active_trash += 1;
 		}
 	}
 
@@ -210,9 +222,38 @@ impl Game {
 		&mut self.grid[ p ]
 	}
 
+	pub fn restart( &mut self ) {
+		self.title_overlay = 0.0;
+		self.state =  State::Walking;
+		self.player_pos = ( 21.0*16.0, 6.0*16.0 );
+		self.player_direction = Direction::Down;
+		self.trash = Vec::new();
+		for t in &mut self.grid {
+			t.bob_type = BobType::None;
+		}
+//		self.grid = vec![Tile{..Default::default()};( GRID_WIDTH*GRID_HEIGHT ) as usize];
+		self.max_trash_bag = 5;
+		self.bag_fill = 0.0;
+		self.bag_fill_target = 0.0;
+		self.time = 0.0;
+		self.trash_recycled = 0;
+		self.time_since_last_trash = 0.0;
+		self.active_trash = 0;
+		self.max_trash = 100;
+		self.gameover = false;
+		self.gameover_offset = 1.0;
+
+		self.render_map = false;
+	}
+
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
 
 		self.time += time_step;
+		self.time_since_last_trash += time_step;
+
+		if self.time_since_last_trash > 3.0 {
+			self.spawn_trash();
+		}
 
 		if self.title_overlay < 1.0 {
 			if self.title_overlay > 0.0 {
@@ -226,7 +267,23 @@ impl Game {
 			}
 		}
 
-		if input.action_a && self.trash.len() < self.max_trash {
+		if !self.gameover && self.active_trash > self.max_trash {
+			self.gameover = true;
+			self.gameover_offset = 1.0;
+		}
+
+		if self.gameover {
+			self.gameover_offset -= 0.75 * time_step;
+			if self.gameover_offset < 0.0 {
+				self.gameover_offset = 0.0;
+				if input.any {
+					self.restart();
+				}
+			}
+			return;
+		}
+
+		if input.action_a && self.trash.len() < self.max_trash_bag {
 			let ( fx, fy ) = self.grid_in_front_of_player();
 			if fx >= 0 && fy >= 0 {
 				let fx = fx as isize;
@@ -424,6 +481,14 @@ impl Game {
 			fb.fill_rect( px, py, ( px+1 ), ( py+1 ), 0x333333ff );
 
 		}
+
+		if self.gameover {
+			let gameover_bob = self.bobmanager.bob( BobType::GameOver );
+			let offset = ( 0.5 * ( 1.0 - self.gameover_offset ) * ( gameover_bob.height as f32 ) ) as isize * gameover_bob.width;
+//			println!("offset {:?} {:?}", offset, self.gameover_offset );
+			fb.blit_rect( 0, 0, fb.width, fb.height, &gameover_bob.data, offset, gameover_bob.width );
+		}
+
 	}
 }
 

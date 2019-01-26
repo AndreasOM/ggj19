@@ -19,7 +19,9 @@ fn main() {
                                  WIDTH as usize,
                                  HEIGHT as usize,
                                  WindowOptions {
-                                           resize: true,
+                                           resize: false,
+                                           borderless: false,
+                                           title: false,
                                            scale: Scale::X4,
                                            ..WindowOptions::default()
                                 }
