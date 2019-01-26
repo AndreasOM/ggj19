@@ -137,12 +137,7 @@ impl Game {
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = img.get_pixel( x as u32, y as u32 );
-//				let pix = ( p.data[ 0 ], p.data[ 1 ], p.data[ 2 ], p.data[ 3 ] );
 				self.grid[ y * GRID_WIDTH + x ].from_color( &p.data );
-//				match pix {
-//					( 0, 0, 0, _ ) => self.grid[ y * GRID_WIDTH + x ].walkable = true,
-//					_ => {},
-//				}
 			}
 		}
 
@@ -193,6 +188,14 @@ impl Game {
 		( x, y )
 	}
 
+	fn tile_in_fron_of_player( &mut self ) -> &mut Tile {
+		let ( x, y ) = self.grid_in_front_of_player();
+		let x = x as usize;
+		let y = y as usize;
+
+		&mut self.grid[ y * GRID_WIDTH + x ]
+	}
+
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
 
 		if input.action_a && self.trash.len() < self.max_trash {
@@ -206,16 +209,20 @@ impl Game {
 				}
 			}
 		} else if input.action_b && self.trash.len() > 0 {
-			let ( fx, fy ) = self.grid_in_front_of_player();
-			if fx >= 0 && fy >= 0 {
-				let fx = fx as usize;
-				let fy = fy as usize;
-				if self.grid[ fy * GRID_WIDTH + fx ].bob_type == BobType::None {
-					match self.trash.pop() {
-						Some( bob_type ) => self.grid[ fy * GRID_WIDTH + fx ].bob_type = bob_type,
-						_ => {},
-					}
+			let bob_type = self.trash[ self.trash.len() - 1 ].clone();
+			let mut trash_dropped = false;
+			let target_tile = self.tile_in_fron_of_player();
+			if target_tile.trash {
+				trash_dropped = true;
+			} else if target_tile.bob_type == BobType::None {
+				if target_tile.walkable || target_tile.rowable {
+					target_tile.bob_type = bob_type;
+					trash_dropped = true;
 				}
+			}
+
+			if trash_dropped {
+				self.trash.pop();
 			}
 		} else {
 		}
@@ -276,20 +283,7 @@ impl Game {
 		if !new_is_valid {
 			self.player_pos = old_pos;
 		}
-/*
-		if self.player_pos.0 < 0.0 {
-			self.player_pos.0 = 0.0;
-		}
-		if self.player_pos.0 > MAX_PLAYER_X {
-			self.player_pos.0 = MAX_PLAYER_X;
-		}
-		if self.player_pos.1 < 0.0 {
-			self.player_pos.1 = 0.0;
-		}
-		if self.player_pos.1 > MAX_PLAYER_Y {
-			self.player_pos.1 = MAX_PLAYER_Y;
-		}
-*/
+
 		// bag
 
 		self.bag_fill_target = 16.0 * self.trash.len() as f32;
@@ -360,23 +354,6 @@ impl Game {
 					let p = y * GRID_WIDTH + x;
 					let col = self.grid[ p ].to_color();
 					fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, col );
-					/*
-					if self.grid[ p ].walkable {
-						if self.grid[ p ].rowable {
-							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00ffff80 );
-						} else {
-							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00000080 );
-						}
-					} else if self.grid[ p ].rowable {
-							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0xff000080 );
-					} else {
-						if self.grid[ p ].trash {
-							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x00ff0080 );
-						} else {
-							fb.fill_rect( x*16, y*16, ( x+1 )*16, ( y+1 )*16, 0x33333380 );
-						}
-					}
-					*/
 				}
 			}
 			let ( px, py ) = self.pos_to_grid( self.player_pos.0, self.player_pos.1 );
