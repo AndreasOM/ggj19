@@ -22,12 +22,6 @@ enum Direction {
 	Left,
 }
 
-#[derive(Debug)]
-pub struct Trash {
-	pos: ( f32, f32 ),
-	bob_type: BobType,
-}
-
 #[derive(Debug,Clone)]
 pub struct Tile {
 	bob_type: BobType,
@@ -50,8 +44,9 @@ pub struct Game {
 	bobmanager: BobManager,
 	player_pos: ( f32, f32 ),
 	player_direction: Direction,
-	trash: Vec< Trash >,
+	trash: Vec< BobType >,
 	grid: Vec< Tile >,
+	max_trash: usize,
 
 	render_map: bool,
 }
@@ -73,6 +68,8 @@ impl Game {
 			player_direction: Direction::Down,
 			trash: Vec::new(),
 			grid: vec![Tile{bob_type:BobType::None,walkable:false};GRID_WIDTH*GRID_HEIGHT],
+			max_trash: 5,
+
 			render_map: false,
 		};
 
@@ -128,11 +125,42 @@ impl Game {
 
 //		true
 	}
+	fn grid_in_front_of_player( &self ) -> ( isize, isize ) {
+		let ( x, y ) = self.pos_to_grid(self.player_pos.0 + 8.0 , self.player_pos.1 + 8.0 );
+		let ( x, y ) = match self.player_direction {
+			Direction::Right => ( x + 1, y ),
+			Direction::Left => ( x - 1, y ),
+			Direction::Up => ( x, y - 1 ),
+			Direction::Down => ( x, y + 1 ),
+		};
+		( x, y )
+	}
 
 	pub fn update( &mut self, input: &mut Input ) {
 
-		if input.action_a {
+		if input.action_a && self.trash.len() < self.max_trash {
+			let ( fx, fy ) = self.grid_in_front_of_player();
+			if fx >= 0 && fy >= 0 {
+				let fx = fx as usize;
+				let fy = fy as usize;
+				if self.grid[ fy * GRID_WIDTH + fx ].bob_type != BobType::None {
+					self.trash.push( self.grid[ fy * GRID_WIDTH + fx ].bob_type );
+					self.grid[ fy * GRID_WIDTH + fx ].bob_type = BobType::None;
+				}
+			}
+
 			self.state = State::Carrying;
+		} else if input.action_b && self.trash.len() > 0 {
+			let ( fx, fy ) = self.grid_in_front_of_player();
+			if fx >= 0 && fy >= 0 {
+				let fx = fx as usize;
+				let fy = fy as usize;
+				if self.grid[ fy * GRID_WIDTH + fx ].bob_type == BobType::None {
+//					self.trash.push( self.grid[ fy * GRID_WIDTH + fx ].bob_type );	// :TODO: pop last
+					self.grid[ fy * GRID_WIDTH + fx ].bob_type = BobType::Trash00;
+				}
+			}
+
 		} else {
 			self.state = State::Walking;
 		}
@@ -207,6 +235,11 @@ impl Game {
 //		println!("{:?}", self.player_pos );
 		self.bobmanager.render( fb, player_bob, self.player_pos.0 as usize, self.player_pos.1 as usize );
 
+		let ( fx, fy ) = self.grid_in_front_of_player();
+		if fx >= 0 && fy >= 0 {
+			self.bobmanager.render( fb, BobType::Target, ( fx * 16 ) as usize, ( fy * 16 ) as usize );
+		}
+
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = y * GRID_WIDTH + x;
@@ -237,6 +270,11 @@ impl Game {
 			let py = py as usize;
 
 			fb.fill_rect( px*16, py*16, ( px+1 )*16, ( py+1 )*16, 0xffffffff );
+
+			let ( px, py ) = self.grid_in_front_of_player();
+			let px = px as usize;
+			let py = py as usize;
+			fb.fill_rect( px*16, py*16, ( px+1 )*16, ( py+1 )*16, 0x88ff88ff );
 
 			let px = self.player_pos.0 as usize;
 			let py = self.player_pos.1 as usize;

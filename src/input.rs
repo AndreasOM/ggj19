@@ -1,6 +1,7 @@
 
 pub struct Input {
 	pub action_a: bool,
+	pub action_b: bool,
 	pub right: bool,
 	pub left: bool,
 	pub up: bool,
@@ -14,6 +15,7 @@ impl Input {
 	pub fn new() -> Input {
 		Input {
 			action_a: false,
+			action_b: false,
 			right: false,
 			left: false,
 			up: false,
@@ -28,6 +30,7 @@ impl Input {
 		match maybe_keys {
 			Some( keys ) => {
 				self.action_a = false;
+				self.action_b = false;
 				self.right = false;
 				self.left = false;
 				self.up = false;
@@ -35,7 +38,8 @@ impl Input {
 
 				for k in keys {
 					match k {
-						minifb::Key::S => self.action_a = true,
+						minifb::Key::A => self.action_a = true,
+						minifb::Key::S => self.action_b = true,
 						minifb::Key::Right => self.right = true,
 						minifb::Key::Left => self.left = true,
 						minifb::Key::Up => self.up = true,

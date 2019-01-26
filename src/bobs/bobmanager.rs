@@ -33,6 +33,10 @@ impl BobManager {
 			self.load_png_bytes( BobType::Background, bytes );
 		}
 		{
+			let bytes = include_bytes!("./../../resources/target.png");
+			self.load_png_bytes( BobType::Target, bytes );
+		}
+		{
 			let bytes = include_bytes!("./../../resources/player_left.png");
 			self.load_png_bytes( BobType::PlayerLeft, bytes );
 		}
