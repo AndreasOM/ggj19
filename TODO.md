@@ -3,16 +3,17 @@
 
 # TODO
 
-[ ] Fix timestep
+[ ] Make game harder over time, and/or over score
 [ ] Maybe switch to autocollect, and drop
 [ ] Add swimming stamina
-[ ] Add trash-o-meter
-[ ] Auto-spawn trash
 
 [ ] Get rid of all the hardcoded magic numbers
 
 # DONE
 
+[x] Add trash-o-meter
+[x] Auto-spawn trash
+[x] Fix timestep
 [x] Randomize trash position in grid (perlin -> sinus)
 [x] Fix alpha
 [x] Create walkable grid

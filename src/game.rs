@@ -292,6 +292,7 @@ impl Game {
 				if self.grid[ p ].bob_type != BobType::None {
 					self.trash.push( self.grid[ p ].bob_type );
 					self.grid[ p ].bob_type = BobType::None;
+					self.active_trash -= 1;
 				}
 			}
 		} else if input.action_b && self.trash.len() > 0 {
@@ -306,6 +307,7 @@ impl Game {
 				if target_tile.walkable || target_tile.rowable {
 					target_tile.bob_type = bob_type;
 					trash_dropped = true;
+					self.active_trash += 1;
 				}
 			}
 
@@ -455,6 +457,17 @@ impl Game {
 //		self.trash_recycled += 1;
 		Counter::draw( self.trash_recycled, &number_bob.data, 480-32, 4, fb );
 		self.bobmanager.render( fb, BobType::Trash00, 480-16, 4 );
+
+		// trash bar
+		let trash_percentage = self.active_trash as f32 / self.max_trash as f32;
+		let r = ( trash_percentage * 255.0 ) as u32;
+		let g = ( ( 1.0-trash_percentage ) * 255.0 ) as u32;
+		let b = 0x20; //( trash_percentage * 255.0 ) as u32;
+		let mut trash_color =  ( 0xff << 24 ) | ( r << 16 ) | ( g << 8 ) | ( b << 0 );
+		if self.gameover {
+			trash_color = 0xffff0000;
+		}
+		fb.fill_rect( 480-16, 270 - 24 -( trash_percentage * 144.0) as isize, 480-8 , 270 - 24, trash_color );
 
 		// debug
 		if self.render_map {
