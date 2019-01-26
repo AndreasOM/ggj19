@@ -29,6 +29,10 @@ impl BobManager {
 	}
 	pub fn load_all( &mut self ) {
 		{
+			let bytes = include_bytes!("./../../resources/title.png");
+			self.load_png_bytes( BobType::Title, bytes );
+		}
+		{
 			let bytes = include_bytes!("./../../resources/level_00.png");
 			self.load_png_bytes( BobType::Background, bytes );
 		}

@@ -85,6 +85,7 @@ impl Default for Tile {
 
 #[derive(Debug)]
 pub struct Game {
+	title_overlay: f32,
 	state: State,
 	bobmanager: BobManager,
 	player_pos: ( f32, f32 ),
@@ -109,6 +110,7 @@ impl Game {
 		let mut bobmanager = BobManager::new();
 		bobmanager.load_all();
 		let mut game = Game {
+			title_overlay: 1.0,
 			state: State::Walking,
 			bobmanager: bobmanager,
 			player_pos: ( 21.0*16.0, 6.0*16.0 ),
@@ -197,6 +199,18 @@ impl Game {
 	}
 
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
+
+		if self.title_overlay < 1.0 {
+			if self.title_overlay > 0.0 {
+				self.title_overlay -= 0.3 * time_step;
+			} else {
+				self.title_overlay = 0.0;
+			}
+		} else {
+			if input.any {
+				self.title_overlay -= 0.001;
+			}
+		}
 
 		if input.action_a && self.trash.len() < self.max_trash {
 			let ( fx, fy ) = self.grid_in_front_of_player();
@@ -348,6 +362,12 @@ impl Game {
 		let bag_bottom = 270 - 16;
 		fb.fill_rect( 16, bag_bottom-( self.bag_fill as usize ), 32, bag_bottom, 0x00000ff );
 
+
+		if self.title_overlay > 0.0 {
+			self.bobmanager.render( fb, BobType::Title, 0, 0 );
+		}
+
+		// debug
 		if self.render_map {
 			for y in 0..GRID_HEIGHT {
 				for x in 0..GRID_WIDTH {

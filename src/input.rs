@@ -1,5 +1,6 @@
 
 pub struct Input {
+	pub any: bool,
 	pub action_a: bool,
 	pub action_b: bool,
 	pub right: bool,
@@ -14,6 +15,7 @@ pub struct Input {
 impl Input {
 	pub fn new() -> Input {
 		Input {
+			any: false,
 			action_a: false,
 			action_b: false,
 			right: false,
@@ -29,6 +31,7 @@ impl Input {
 	pub fn update_keys( &mut self, maybe_keys: &Option< Vec< minifb::Key > > ) {
 		match maybe_keys {
 			Some( keys ) => {
+				self.any = false;
 				self.action_a = false;
 				self.action_b = false;
 				self.right = false;
@@ -37,6 +40,7 @@ impl Input {
 				self.down = false;
 
 				for k in keys {
+					self.any = true;
 					match k {
 						minifb::Key::A => self.action_a = true,
 						minifb::Key::S => self.action_b = true,
