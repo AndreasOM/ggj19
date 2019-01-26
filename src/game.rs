@@ -222,6 +222,36 @@ impl Game {
 		&mut self.grid[ p ]
 	}
 
+	fn tile( &self, p: isize ) -> &Tile {
+		if p < 0 || p as usize > self.grid.len() {
+			println!("Warning tried to access tile {:?}", p );
+			return &self.grid[ 0 ];
+		}
+
+		&self.grid[ p as usize ]
+	}
+
+	fn tile_at( &self, x: isize, y: isize ) -> &Tile {
+		let p = y * GRID_WIDTH + x;
+
+		self.tile( p )
+	}
+
+	fn mut_tile( &mut self, p: isize ) -> &mut Tile {
+		if p < 0 || p as usize > self.grid.len() {
+			println!("Warning tried to access tile {:?}", p );
+			return &mut self.grid[ 0 ];
+		}
+
+		&mut self.grid[ p as usize ]
+	}
+
+	fn mut_tile_at( &mut self, x: isize, y: isize ) -> &mut Tile {
+		let p = y * GRID_WIDTH + x;
+
+		self.mut_tile( p )
+	}
+
 	pub fn restart( &mut self ) {
 		self.title_overlay = 0.0;
 		self.state =  State::Walking;
@@ -246,16 +276,27 @@ impl Game {
 		self.render_map = false;
 	}
 
+	// 0.0 -> easy
+	// 100.0 -> super hard
+	fn difficulty( &self ) -> f32 {
+		let trash_factor = if self.trash_recycled > 0 {
+			0.2*( ( self.trash_recycled as f32 ).log(3.0) )
+		} else {
+			0.0
+		};
+
+		100.0 *  trash_factor
+	}
+
 	pub fn update( &mut self, time_step: f32, input: &mut Input ) {
 
-		self.time += time_step;
-		self.time_since_last_trash += time_step;
 
-		if self.time_since_last_trash > 3.0 {
-			self.spawn_trash();
-		}
 
 		if self.title_overlay < 1.0 {
+			// game running
+			self.time += time_step;
+			self.time_since_last_trash += time_step;
+
 			if self.title_overlay > 0.0 {
 				self.title_overlay -= 0.3 * time_step;
 			} else {
@@ -283,15 +324,29 @@ impl Game {
 			return;
 		}
 
+		let difficulty = self.difficulty();
+		let mut auto_spawn_time = 3.0 - 2.0 * ( difficulty/100.0 );
+		if auto_spawn_time < 0.1 {
+			auto_spawn_time = 0.1;
+		}
+		if self.time_since_last_trash > auto_spawn_time {
+			self.spawn_trash();
+		}
+
 		if input.action_a && self.trash.len() < self.max_trash_bag {
 			let ( fx, fy ) = self.grid_in_front_of_player();
 			if fx >= 0 && fy >= 0 {
 				let fx = fx as isize;
 				let fy = fy as isize;
+				let t = self.tile_at( fx, fy );
 				let p = ( fy * GRID_WIDTH + fx ) as usize;
-				if self.grid[ p ].bob_type != BobType::None {
-					self.trash.push( self.grid[ p ].bob_type );
-					self.grid[ p ].bob_type = BobType::None;
+//				if self.grid[ p ].bob_type != BobType::None {
+				if t.bob_type != BobType::None {
+//					self.trash.push( self.grid[ p ].bob_type );
+					self.trash.push( t.bob_type );
+					let t = self.mut_tile_at( fx, fy );
+					t.bob_type = BobType::None;
+//					self.grid[ p ].bob_type = BobType::None;
 					self.active_trash -= 1;
 				}
 			}
@@ -447,11 +502,6 @@ impl Game {
 		let bag_bottom = 270 - 16;
 		fb.fill_rect( 16, bag_bottom-( self.bag_fill as isize ), 32, bag_bottom, 0x00000ff );
 
-
-		if self.title_overlay > 0.0 {
-			self.bobmanager.render_fullscreen_alpha( fb, BobType::Title, self.title_overlay );
-		}
-
 		// ui
 		let number_bob = self.bobmanager.bob( BobType::Numbers );
 //		self.trash_recycled += 1;
@@ -497,6 +547,11 @@ impl Game {
 			fb.fill_rect( px, py, ( px+1 ), ( py+1 ), 0x333333ff );
 
 		}
+
+		if self.title_overlay > 0.0 {
+			self.bobmanager.render_fullscreen_alpha( fb, BobType::Title, self.title_overlay );
+		}
+
 
 		if self.gameover {
 			let gameover_bob = self.bobmanager.bob( BobType::GameOver );

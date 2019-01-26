@@ -73,7 +73,7 @@ impl BobManager {
 	// BGRA
 	fn blend( fg: u32, bg: u32 ) -> u32 {
 //		l
-		let a = ( ( fg >> 0 ) & 0xff ) as f32 / 255.0;// + 1;
+		let a = ( ( fg >> 24 ) & 0xff ) as f32 / 255.0;// + 1;
 		FB::mix( fg, bg, a )
 		/*
 		let a = ( ( fg >> 0 ) & 0xff ) as u32;// + 1;
