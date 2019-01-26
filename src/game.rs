@@ -4,6 +4,7 @@ use rand::Rng;
 use perlin::PerlinNoise;
 
 use crate::bobs::bobtype::BobType;
+use crate::counter::Counter;
 use crate::fb::FB;
 use crate::input::Input;
 
@@ -97,6 +98,7 @@ pub struct Game {
 	bag_fill: f32,
 	bag_fill_target: f32,
 	time: f32,
+	trash_recycled: usize,
 
 	render_map: bool,
 }
@@ -125,6 +127,7 @@ impl Game {
 			bag_fill: 0.0,
 			bag_fill_target: 0.0,
 			time: 0.0,
+			trash_recycled: 0,
 
 			render_map: false,
 		};
@@ -241,6 +244,7 @@ impl Game {
 			let target_tile = self.tile_in_fron_of_player();
 			if target_tile.trash {
 				trash_dropped = true;
+				self.trash_recycled += 1;
 			} else if target_tile.bob_type == BobType::None {
 				if target_tile.walkable || target_tile.rowable {
 					target_tile.bob_type = bob_type;
@@ -388,6 +392,12 @@ impl Game {
 		if self.title_overlay > 0.0 {
 			self.bobmanager.render_fullscreen_alpha( fb, BobType::Title, self.title_overlay );
 		}
+
+		// ui
+		let number_bob = self.bobmanager.bob( BobType::Numbers );
+//		self.trash_recycled += 1;
+		Counter::draw( self.trash_recycled, &number_bob.data, 480-32, 4, fb );
+		self.bobmanager.render( fb, BobType::Trash00, 480-16, 4 );
 
 		// debug
 		if self.render_map {

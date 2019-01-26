@@ -47,6 +47,7 @@ fn main() {
 }
 
 mod bobs;
+mod counter;
 mod fb;
 mod game;
 mod input;

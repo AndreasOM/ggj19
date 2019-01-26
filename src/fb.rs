@@ -49,5 +49,27 @@ impl FB {
 			}
 		}
 	}
+
+	pub fn blit_rect( &mut self, sx: isize, sy: isize, ex: isize, ey: isize, data: &Vec< u32 >, offset: isize, width: isize ) {
+		let h = ey - sy;
+		let w = ex - sx;
+
+		let mut src = offset;
+		let mut dst = self.width * sy + sx;
+
+		for y in 0..h {
+			for x in 0..w {
+				let fg = data[ src as usize ];
+				let a = ( ( fg >> 0 ) & 0xff ) as f32 / 255.0;// + 1;
+				self.buffer[ dst as usize ] = FB::mix( fg, self.buffer[ dst as usize ], a );
+				src += 1;
+				dst += 1;
+			}
+			src -= w;
+			src += width;
+			dst -= w;
+			dst += self.width;
+		}
+	}
 }
 

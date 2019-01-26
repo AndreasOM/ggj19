@@ -33,6 +33,10 @@ impl BobManager {
 			self.load_png_bytes( BobType::Title, bytes );
 		}
 		{
+			let bytes = include_bytes!("./../../resources/numbers.png");
+			self.load_png_bytes( BobType::Numbers, bytes );
+		}
+		{
 			let bytes = include_bytes!("./../../resources/level_00.png");
 			self.load_png_bytes( BobType::Background, bytes );
 		}
@@ -84,6 +88,10 @@ impl BobManager {
 		( b << 24 ) | ( g << 16 ) | ( r << 8 ) | ( a << 0 )
 		*/
 //		fg
+	}
+
+	pub fn bob( &self, bob_type: BobType ) -> &Bob {
+		&self.bobs[ &bob_type ]
 	}
 
 	pub fn render_fullscreen_alpha( &self, fb: &mut FB, bobtype: BobType, alpha: f32 )
