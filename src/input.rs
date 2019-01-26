@@ -7,6 +7,7 @@ pub struct Input {
 	pub down: bool,
 
 	pub debug_0: bool,
+	pub debug_1: bool,
 }
 
 impl Input {
@@ -19,6 +20,7 @@ impl Input {
 			down: false,
 
 			debug_0: false,
+			debug_1: false,
 		}
 	}
 
@@ -40,6 +42,7 @@ impl Input {
 						minifb::Key::Down => self.down = true,
 
 						minifb::Key::Key0 => self.debug_0 = true,
+						minifb::Key::Key1 => self.debug_1 = true,
 						_ => {},
 					}
 				}
