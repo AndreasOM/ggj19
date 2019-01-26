@@ -30,9 +30,11 @@ impl Bob {
 		for p in img.pixels() {
 			let d = p.2.data;
 			self.data.push(
+				// let mut trash_color =  ( 0xff << 24 ) | ( r << 16 ) | ( g << 8 ) | ( b << 0 );
+				// ARGB = RGBA !
 				// BGRA = RGBA
-				  ( ( d[ 0 ] as u32 ) <<  8 )	// R
-				| ( ( d[ 1 ] as u32 ) << 16 )	// G
+				  ( ( d[ 0 ] as u32 ) << 16 )	// R
+				| ( ( d[ 1 ] as u32 ) <<  8 )	// G
 				| ( ( d[ 2 ] as u32 ) <<  0 )	// B
 				| ( ( d[ 3 ] as u32 ) << 24 )	// A
 			);

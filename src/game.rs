@@ -459,7 +459,10 @@ impl Game {
 		self.bobmanager.render( fb, BobType::Trash00, 480-16, 4 );
 
 		// trash bar
-		let trash_percentage = self.active_trash as f32 / self.max_trash as f32;
+		let mut trash_percentage = self.active_trash as f32 / self.max_trash as f32;
+		if trash_percentage > 1.0 {
+			trash_percentage = 1.0;
+		}
 		let r = ( trash_percentage * 255.0 ) as u32;
 		let g = ( ( 1.0-trash_percentage ) * 255.0 ) as u32;
 		let b = 0x20; //( trash_percentage * 255.0 ) as u32;
