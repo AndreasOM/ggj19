@@ -3,6 +3,7 @@ pub enum BobType {
 	None,
 	Title,
 	GameOver,
+	Help,
 	Numbers,
 	Target,
 	PlayerLeft,

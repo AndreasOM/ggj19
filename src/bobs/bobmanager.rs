@@ -37,6 +37,10 @@ impl BobManager {
 			self.load_png_bytes( BobType::GameOver, bytes );
 		}
 		{
+			let bytes = include_bytes!("./../../resources/help.png");
+			self.load_png_bytes( BobType::Help, bytes );
+		}
+		{
 			let bytes = include_bytes!("./../../resources/numbers.png");
 			self.load_png_bytes( BobType::Numbers, bytes );
 		}

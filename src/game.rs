@@ -1,7 +1,6 @@
 
 use image::GenericImageView;
 use rand::Rng;
-use perlin::PerlinNoise;
 
 use crate::bobs::bobtype::BobType;
 use crate::counter::Counter;
@@ -98,12 +97,16 @@ pub struct Game {
 	bag_fill: f32,
 	bag_fill_target: f32,
 	time: f32,
+	no_move_after_start_time: f32,
+	move_count: usize,
 	trash_recycled: usize,
 	time_since_last_trash: f32,
 	active_trash: usize,
 	max_trash: usize,
 	gameover: bool,
 	gameover_offset: f32,
+	help_alpha: f32,
+	show_help: bool,
 
 	render_map: bool,
 }
@@ -132,12 +135,16 @@ impl Game {
 			bag_fill: 0.0,
 			bag_fill_target: 0.0,
 			time: 0.0,
+			no_move_after_start_time: 0.0,
+			move_count: 0,
 			trash_recycled: 0,
 			time_since_last_trash: 0.0,
 			active_trash: 0,
 			max_trash: 100,
 			gameover: false,
 			gameover_offset: 1.0,
+			help_alpha: 0.0,
+			show_help: false,
 
 			render_map: false,
 		};
@@ -266,12 +273,16 @@ impl Game {
 		self.bag_fill = 0.0;
 		self.bag_fill_target = 0.0;
 		self.time = 0.0;
+		self.no_move_after_start_time = 0.0;
+		self.move_count = 0;
 		self.trash_recycled = 0;
 		self.time_since_last_trash = 0.0;
 		self.active_trash = 0;
 		self.max_trash = 100;
 		self.gameover = false;
 		self.gameover_offset = 1.0;
+		self.help_alpha = 0.0;
+		self.show_help = false;
 
 		self.render_map = false;
 	}
@@ -324,6 +335,17 @@ impl Game {
 			return;
 		}
 
+		if self.show_help {
+			self.help_alpha += 0.5 * time_step;
+			if self.help_alpha > 1.0 {
+				self.help_alpha = 1.0;
+			}
+		} else {
+			self.help_alpha -= 0.5 * time_step;
+			if self.help_alpha < 0.0 {
+				self.help_alpha = 0.0;
+			}
+		}
 		let difficulty = self.difficulty();
 		let mut auto_spawn_time = 3.0 - 2.0 * ( difficulty/100.0 );
 		if auto_spawn_time < 0.1 {
@@ -332,6 +354,8 @@ impl Game {
 		if self.time_since_last_trash > auto_spawn_time {
 			self.spawn_trash();
 		}
+
+		let mut any_action = false;
 
 		if input.action_a && self.trash.len() < self.max_trash_bag {
 			let ( fx, fy ) = self.grid_in_front_of_player();
@@ -348,6 +372,7 @@ impl Game {
 					t.bob_type = BobType::None;
 //					self.grid[ p ].bob_type = BobType::None;
 					self.active_trash -= 1;
+					any_action = true;
 				}
 			}
 		} else if input.action_b && self.trash.len() > 0 {
@@ -358,11 +383,13 @@ impl Game {
 			if target_tile.trash {
 				trash_dropped = true;
 				self.trash_recycled += 1;
+				any_action = true;
 			} else if target_tile.bob_type == BobType::None {
 				if target_tile.walkable || target_tile.rowable {
 					target_tile.bob_type = bob_type;
 					trash_dropped = true;
 					self.active_trash += 1;
+					any_action = true;
 				}
 			}
 
@@ -378,15 +405,19 @@ impl Game {
 		if input.right {
 			self.player_pos.0 += dist;
 			self.player_direction = Direction::Right;
+			any_action = true;
 		} else if input.left {
 			self.player_pos.0 -= dist;
 			self.player_direction = Direction::Left;
+			any_action = true;
 		} else if input.down {
 			self.player_pos.1 += dist;
 			self.player_direction = Direction::Down;
+			any_action = true;
 		} else if input.up {
 			self.player_pos.1 -= dist;
 			self.player_direction = Direction::Up;
+			any_action = true;
 		}
 
 		let mut new_is_valid = true;
@@ -427,6 +458,18 @@ impl Game {
 			self.player_pos = old_pos;
 		}
 
+		if !any_action {
+			self.no_move_after_start_time += time_step;
+		} else {
+			self.no_move_after_start_time = 0.0;
+		}
+
+		if self.no_move_after_start_time > 10.0 {
+			self.show_help = true;
+			self.time_since_last_trash = 0.0;	// don't trash while blocked/paused ;)
+		} else {
+			self.show_help = false;
+		}
 		// bag
 
 		self.bag_fill_target = 16.0 * self.trash.len() as f32;
@@ -478,13 +521,10 @@ impl Game {
 			self.bobmanager.render( fb, BobType::Target, ( fx * 16 ) as isize, ( fy * 16 ) as isize );
 		}
 
-		let perlin = PerlinNoise::new();
 		for y in 0..GRID_HEIGHT {
 			for x in 0..GRID_WIDTH {
 				let p = ( y * GRID_WIDTH + x ) as usize;
 				if self.grid[ p ].bob_type != BobType::None {
-//					let ox = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.01]) * 8.0 ) as usize;
-//					let oy = ( perlin.get3d([x as f64, y as f64, self.time as f64 * 0.011]) * 8.0 ) as usize;
 					let ox = ( 0.0 + ( x as f64 + y as f64 + self.time as f64 * 11.1 ).sin() * 2.0 ) as isize;
 					let oy = -ox;
 					let bx = ( ( ( x * 16 ) as isize ) + ox ) as isize;
@@ -550,6 +590,10 @@ impl Game {
 
 		if self.title_overlay > 0.0 {
 			self.bobmanager.render_fullscreen_alpha( fb, BobType::Title, self.title_overlay );
+		}
+
+		if self.help_alpha > 0.0 {
+			self.bobmanager.render_fullscreen_alpha( fb, BobType::Help, self.help_alpha );
 		}
 
 

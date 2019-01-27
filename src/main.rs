@@ -2,7 +2,6 @@
 
 extern crate minifb;
 extern crate rand;
-extern crate perlin_noise as perlin;
 
 use std::time::{Duration, Instant};
 
